@@ -23,6 +23,7 @@ from jobspy.util import (
     map_str_to_site,
     convert_to_annual,
     desired_order,
+    integer_columns,
 )
 from jobspy.ziprecruiter import ZipRecruiter
 
@@ -227,7 +228,12 @@ def scrape_jobs(
         # Reorder the DataFrame according to the desired order
         jobs_df = jobs_df[desired_order]
 
-        # Step 4: Sort the DataFrame as required
+        # Step 4: Keep count columns integral - see integer_columns
+        for column in integer_columns:
+            if column in jobs_df.columns:
+                jobs_df[column] = jobs_df[column].astype("Int64")
+
+        # Step 5: Sort the DataFrame as required
         return jobs_df.sort_values(
             by=["site", "date_posted"], ascending=[True, False]
         ).reset_index(drop=True)

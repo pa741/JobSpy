@@ -324,6 +324,17 @@ def convert_to_annual(job_data: dict):
     job_data["interval"] = "yearly"
 
 
+# Counts, kept as counts. pandas widens an int column to float the moment one row
+# is missing it, so a mixed-site run writes "51.0" applicants and "4.0" days into
+# the CSV. Int64 is the nullable integer dtype: it writes 51 and an empty cell.
+integer_columns = [
+    "applicant_count",
+    "posting_age_days",
+    "repost_count",
+    "company_reviews_count",
+    "vacancy_count",
+]
+
 desired_order = [
     "id",
     "site",

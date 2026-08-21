@@ -1,5 +1,11 @@
 <img src="https://github.com/cullenwatson/JobSpy/assets/78247585/ae185b7e-e444-4712-8bb9-fa97f53e896b" width="400">
 
+> **This is a fork.** Upstream [speedyapply/JobSpy](https://github.com/speedyapply/JobSpy)
+> has not merged since 2026-02-18. This fork adds LinkedIn applicant counts and a
+> [freehire.me](https://freehire.me) source, and is consumed by
+> [pa741/job-scrapper](https://github.com/pa741/job-scrapper) pinned to a tag. Work lands on
+> the `patches` branch; `main` tracks upstream so `patches` stays rebaseable.
+
 **JobSpy** is a job scraping library with the goal of aggregating all the jobs from popular job boards with one tool.
 
 ## Features

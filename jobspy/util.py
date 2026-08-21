@@ -341,6 +341,8 @@ desired_order = [
     "currency",
     "is_remote",
     "job_level",
+    "applicants",
+    "applicant_count",
     "job_function",
     "listing_type",
     "emails",

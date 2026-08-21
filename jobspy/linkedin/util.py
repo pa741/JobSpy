@@ -1,3 +1,5 @@
+import re
+
 from bs4 import BeautifulSoup
 
 from jobspy.model import JobType, Location
@@ -94,3 +96,30 @@ def is_job_remote(title: dict, description: str, location: Location) -> bool:
     full_string = f'{title} {description} {location}'.lower()
     is_remote = any(keyword in full_string for keyword in remote_keywords)
     return is_remote
+
+
+applicants_re = re.compile(r"([\d,]+)\s*\+?\s*applicant", re.IGNORECASE)
+
+
+def parse_applicant_count(applicants_text: str | None) -> int | None:
+    """
+    Pulls the figure out of LinkedIn's applicant caption.
+
+    LinkedIn phrases it several ways and only one of them is a bare count:
+        "90 applicants"                    -> 90
+        "Over 200 applicants"              -> 200
+        "Be among the first 25 applicants" -> 25
+
+    The qualifier is dropped rather than modelled - "over 200" and "first 25"
+    are both a threshold near the real number, and the caption is kept verbatim
+    in `applicants` for anyone who needs to tell them apart.
+    """
+    if not applicants_text:
+        return None
+    match = applicants_re.search(applicants_text)
+    if not match:
+        return None
+    try:
+        return int(match.group(1).replace(",", ""))
+    except ValueError:
+        return None

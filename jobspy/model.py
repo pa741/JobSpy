@@ -257,6 +257,8 @@ class JobPost(BaseModel):
 
     # LinkedIn specific
     job_level: str | None = None
+    applicants: str | None = None  # verbatim caption, e.g. "Over 200 applicants"
+    applicant_count: int | None = None  # the figure parsed out of it, e.g. 200
 
     # LinkedIn and Indeed specific
     company_industry: str | None = None

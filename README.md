@@ -111,7 +111,7 @@ Optional
 |    (0 prints only errors, 1 is errors+warnings, 2 is all logs. Default is 2.)
 
 ├── linkedin_fetch_description (bool): 
-|    fetches full description and direct job url for LinkedIn (Increases requests by O(n))
+|    fetches full description, direct job url and applicant count for LinkedIn (Increases requests by O(n))
 │
 ├── linkedin_company_ids (list[int]): 
 |    searches for linkedin jobs with specific company ids
@@ -243,7 +243,9 @@ JobPost
 └── emails
 
 Linkedin specific
-└── job_level
+├── job_level
+├── applicants          (verbatim caption, e.g. "Over 200 applicants")
+└── applicant_count     (the figure parsed out of it, e.g. 200)
 
 Linkedin & Indeed specific
 └── company_industry

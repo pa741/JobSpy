@@ -18,7 +18,8 @@ from jobspy.linkedin.util import (
     job_type_code,
     parse_job_type,
     parse_job_level,
-    parse_company_industry
+    parse_company_industry,
+    parse_applicant_count,
 )
 from jobspy.model import (
     JobPost,
@@ -42,6 +43,13 @@ from jobspy.util import (
 )
 
 log = create_logger("LinkedIn")
+
+# Matches the whole caption, not just the digits, so the fallback can hand back
+# the same verbatim text the class-based lookups do.
+applicants_text_re = re.compile(
+    r"(?:be among the first\s+)?(?:over\s+)?[\d,]+\s*\+?\s*applicants?",
+    re.IGNORECASE,
+)
 
 
 class LinkedIn(Scraper):
@@ -238,6 +246,8 @@ class LinkedIn(Scraper):
             compensation=compensation,
             job_type=job_details.get("job_type"),
             job_level=job_details.get("job_level", "").lower(),
+            applicants=job_details.get("applicants"),
+            applicant_count=parse_applicant_count(job_details.get("applicants")),
             company_industry=job_details.get("company_industry"),
             description=job_details.get("description"),
             job_url_direct=job_details.get("job_url_direct"),
@@ -299,7 +309,41 @@ class LinkedIn(Scraper):
             "job_url_direct": self._parse_job_url_direct(soup),
             "company_logo": company_logo,
             "job_function": job_function,
+            "applicants": self._parse_applicants(soup),
         }
+
+    def _parse_applicants(self, soup: BeautifulSoup) -> str | None:
+        """
+        Reads LinkedIn's applicant caption off the job detail page, verbatim.
+
+        Only present when the detail page was fetched at all, so this is None
+        for every job unless linkedin_fetch_description is set.
+
+        Three lookups, narrowest first. The two class-based ones are exact and
+        cheap; the text scan behind them exists because these class names have
+        churned before, and a rename would otherwise empty the column silently -
+        a scraper that returns None for every row looks identical to a listing
+        that genuinely states no applicant count.
+        """
+        applicants_caption = soup.find(
+            class_=lambda x: x and "num-applicants__caption" in x
+        )
+        if applicants_caption:
+            return applicants_caption.get_text(separator=" ", strip=True)
+
+        applicants_figure = soup.find(
+            "figure", class_=lambda x: x and "num-applicants__figure" in x
+        )
+        if applicants_figure:
+            return applicants_figure.get_text(separator=" ", strip=True)
+
+        fallback = soup.find(string=applicants_text_re)
+        if fallback:
+            match = applicants_text_re.search(fallback)
+            if match:
+                return match.group(0).strip()
+
+        return None
 
     def _get_location(self, metadata_card: Optional[Tag]) -> Location:
         """

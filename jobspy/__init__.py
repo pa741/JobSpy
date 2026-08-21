@@ -110,27 +110,41 @@ def scrape_jobs(
         hours_old=hours_old,
     )
 
-    def scrape_site(site: Site) -> Tuple[str, JobResponse]:
-        scraper_class = SCRAPER_MAPPING[site]
-        scraper = scraper_class(proxies=proxies, ca_cert=ca_cert, user_agent=user_agent)
-        scraped_data: JobResponse = scraper.scrape(scraper_input)
+    def site_log_name(site: Site) -> str:
         cap_name = site.value.capitalize()
         # Table rather than a chain of conditionals: the chain reassigned
         # site_name from cap_name each time, so the last branch won and
         # ZipRecruiter's own line never took effect.
-        site_name = {
+        return {
             "Zip_recruiter": "ZipRecruiter",
             "Linkedin": "LinkedIn",
             "Freehire": "FreeHire",
         }.get(cap_name, cap_name)
-        create_logger(site_name).info(f"finished scraping")
+
+    def scrape_site(site: Site) -> Tuple[str, JobResponse]:
+        scraper_class = SCRAPER_MAPPING[site]
+        scraper = scraper_class(proxies=proxies, ca_cert=ca_cert, user_agent=user_agent)
+        scraped_data: JobResponse = scraper.scrape(scraper_input)
+        create_logger(site_log_name(site)).info(f"finished scraping")
         return site.value, scraped_data
 
     site_to_jobs_dict = {}
 
     def worker(site):
-        site_val, scraped_info = scrape_site(site)
-        return site_val, scraped_info
+        try:
+            return scrape_site(site)
+        except Exception:
+            # One board failing must not discard the others. These run concurrently
+            # and future.result() re-raises, so an unhandled error here does not just
+            # lose its own site - it throws away every result the other scrapers have
+            # already finished collecting, and the caller gets an exception instead of
+            # a run. Being blocked by one board is normal; losing the run over it is
+            # not. Logged at ERROR with the traceback, so it stays visible even at the
+            # quietest verbosity.
+            create_logger(site_log_name(site)).exception(
+                f"scrape failed - continuing without {site.value}"
+            )
+            return site.value, JobResponse(jobs=[])
 
     with ThreadPoolExecutor() as executor:
         future_to_site = {

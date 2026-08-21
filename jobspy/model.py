@@ -282,6 +282,12 @@ class JobPost(BaseModel):
     vacancy_count: int | None = None  #from vacancy
     work_from_home_type: str | None = None  #from clusters.wfhType (e.g., "Hybrid", "Remote")
 
+    # freehire specific
+    # freehire is an aggregator: `site` says freehire for every row, while this
+    # says which of its 227 crawled boards the posting actually came from
+    # ("greenhouse" vs "whatjobs-uk"), i.e. first-party ATS or re-aggregated.
+    source_board: str | None = None
+
 class JobResponse(BaseModel):
     jobs: list[JobPost] = []
 
@@ -295,6 +301,7 @@ class Site(Enum):
     BAYT = "bayt"
     NAUKRI = "naukri"
     BDJOBS = "bdjobs"  # Add this line
+    FREEHIRE = "freehire"
 
 
 class SalarySource(Enum):
@@ -317,6 +324,10 @@ class ScraperInput(BaseModel):
     linkedin_fetch_description: bool = False
     linkedin_company_ids: list[int] | None = None
     description_format: DescriptionFormat | None = DescriptionFormat.MARKDOWN
+
+    freehire_full_description: bool = True
+    freehire_api_key: str | None = None
+    freehire_filters: dict | None = None
 
     request_timeout: int = 60
 

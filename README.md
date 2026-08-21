@@ -11,6 +11,7 @@
 ## Features
 
 - Scrapes job postings from **LinkedIn**, **Indeed**, **Glassdoor**, **Google**, **ZipRecruiter**, & other job boards concurrently
+- Reads **freehire.me**'s public API, which aggregates 227 further ATS/boards (IT/tech roles only)
 - Aggregates the job postings in a dataframe
 - Proxies support to bypass blocking
 
@@ -31,7 +32,7 @@ import csv
 from jobspy import scrape_jobs
 
 jobs = scrape_jobs(
-    site_name=["indeed", "linkedin", "zip_recruiter", "google"], # "glassdoor", "bayt", "naukri", "bdjobs"
+    site_name=["indeed", "linkedin", "zip_recruiter", "google"], # "glassdoor", "bayt", "naukri", "bdjobs", "freehire"
     search_term="software engineer",
     google_search_term="software engineer jobs near San Francisco, CA since yesterday",
     location="San Francisco, CA",
@@ -65,7 +66,7 @@ zip_recruiter Software Developer                 TEKsystems        Phoenix      
 ```plaintext
 Optional
 ├── site_name (list|str): 
-|    linkedin, zip_recruiter, indeed, glassdoor, google, bayt, bdjobs
+|    linkedin, zip_recruiter, indeed, glassdoor, google, bayt, bdjobs, freehire
 |    (default is all)
 │
 ├── search_term (str)
@@ -115,6 +116,21 @@ Optional
 │
 ├── linkedin_company_ids (list[int]): 
 |    searches for linkedin jobs with specific company ids
+|
+├── freehire_full_description (bool):
+|    fetches each posting's full description instead of the search index's
+|    truncated preview. Default is True; costs nothing extra per posting,
+|    just a larger response.
+|
+├── freehire_api_key (str):
+|    a freehire personal API key, sent as a bearer token. Optional - search
+|    is unauthenticated, and a key only identifies the caller.
+|
+├── freehire_filters (dict):
+|    any additional freehire facet, passed through verbatim and applied over
+|    the filters derived from the parameters above, e.g.
+|    {"skills": "go", "seniority": "senior", "employment_type": "contract"}.
+|    Call https://freehire.me/api/v1/jobs/facets for the live vocabulary.
 |
 ├── country_indeed (str): 
 |    filters the country on Indeed & Glassdoor (see below for correct spelling)
@@ -179,12 +195,28 @@ You can specify the following countries when searching on Indeed (use the exact 
 
 Bayt only uses the search_term parameter currently and searches internationally
 
+### **freehire**
+
+freehire is an API, not a scrape: no proxy is used for it even when `proxies` is set, since
+there is nothing to route around and it is the largest payload of a run.
+
+`location` and `country_indeed` are resolved to freehire's own geography facets. Note that
+its `regions`, `countries` and `cities` facets are a single OR-group rather than three
+filters that intersect, so `countries=gb&cities=London` means "the UK **or** London" - wider
+than either alone. The adapter therefore picks exactly one level: the canonical city when
+`location` resolves to one, otherwise the country. Pass `freehire_filters={"regions": ...}`
+to choose the level yourself.
+
+Coverage is IT/tech roles only, so it complements the general-purpose boards rather than
+replacing one.
+
 
 
 ## Notes
 * Indeed is the best scraper currently with no rate limiting.  
 * All the job board endpoints are capped at around 1000 jobs on a given search.  
 * LinkedIn is the most restrictive and usually rate limits around the 10th page with one ip. Proxies are a must basically.
+* freehire is the exception to both: it publishes 600 req/min and reports your remaining budget on every response, and paging is capped at offset 10000 rather than ~1000 jobs.
 
 ## Frequently Asked Questions
 
@@ -257,6 +289,9 @@ Indeed specific
 ├── company_revenue_label
 ├── company_description
 └── company_logo
+
+freehire specific
+└── source_board        (which of freehire's crawled boards the posting came from)
 
 Naukri specific
 ├── skills

@@ -7,6 +7,7 @@ import pandas as pd
 
 from jobspy.bayt import BaytScraper
 from jobspy.bdjobs import BDJobs
+from jobspy.freehire import FreeHire
 from jobspy.glassdoor import Glassdoor
 from jobspy.google import Google
 from jobspy.indeed import Indeed
@@ -44,6 +45,9 @@ def scrape_jobs(
     description_format: str = "markdown",
     linkedin_fetch_description: bool | None = False,
     linkedin_company_ids: list[int] | None = None,
+    freehire_full_description: bool = True,
+    freehire_api_key: str | None = None,
+    freehire_filters: dict | None = None,
     offset: int | None = 0,
     hours_old: int = None,
     enforce_annual_salary: bool = False,
@@ -64,6 +68,7 @@ def scrape_jobs(
         Site.BAYT: BaytScraper,
         Site.NAUKRI: Naukri,
         Site.BDJOBS: BDJobs,  # Add BDJobs to the scraper mapping
+        Site.FREEHIRE: FreeHire,
     }
     set_logger_level(verbose)
     job_type = get_enum_from_value(job_type) if job_type else None
@@ -97,6 +102,9 @@ def scrape_jobs(
         linkedin_fetch_description=linkedin_fetch_description,
         results_wanted=results_wanted,
         linkedin_company_ids=linkedin_company_ids,
+        freehire_full_description=freehire_full_description,
+        freehire_api_key=freehire_api_key,
+        freehire_filters=freehire_filters,
         offset=offset,
         hours_old=hours_old,
     )
@@ -106,8 +114,14 @@ def scrape_jobs(
         scraper = scraper_class(proxies=proxies, ca_cert=ca_cert, user_agent=user_agent)
         scraped_data: JobResponse = scraper.scrape(scraper_input)
         cap_name = site.value.capitalize()
-        site_name = "ZipRecruiter" if cap_name == "Zip_recruiter" else cap_name
-        site_name = "LinkedIn" if cap_name == "Linkedin" else cap_name
+        # Table rather than a chain of conditionals: the chain reassigned
+        # site_name from cap_name each time, so the last branch won and
+        # ZipRecruiter's own line never took effect.
+        site_name = {
+            "Zip_recruiter": "ZipRecruiter",
+            "Linkedin": "LinkedIn",
+            "Freehire": "FreeHire",
+        }.get(cap_name, cap_name)
         create_logger(site_name).info(f"finished scraping")
         return site.value, scraped_data
 

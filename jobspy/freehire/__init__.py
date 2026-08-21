@@ -320,6 +320,7 @@ class FreeHire(Scraper):
             return None
 
         enrichment = hit.get("enrichment") or {}
+        reality = hit.get("reality") or {}
         work_mode = hit.get("work_mode")
         company_slug = hit.get("company_slug")
 
@@ -341,8 +342,32 @@ class FreeHire(Scraper):
             is_remote=work_mode == "remote" if work_mode else None,
             company_url=f"{site_url}/companies/{company_slug}" if company_slug else None,
             skills=hit.get("skills"),
+            # These three are not freehire-only concepts, so they go in the
+            # columns the other boards already use rather than in new ones.
+            job_level=enrichment.get("seniority"),
+            experience_range=self._experience_range(enrichment),
+            # freehire's company_size really is an employee band ("51-200",
+            # "1000+"), the same shape Indeed puts here - not a size adjective.
+            company_num_employees=enrichment.get("company_size"),
             source_board=hit.get("source"),
+            summary=enrichment.get("summary"),
+            freshness_class=reality.get("class"),
+            posting_age_days=reality.get("age_days"),
+            repost_count=reality.get("repost_count"),
+            fake_freshness=reality.get("fake_freshness"),
         )
+
+    @staticmethod
+    def _experience_range(enrichment: dict) -> str | None:
+        """
+        freehire states only a lower bound, so it is rendered as one. Naukri
+        fills this column with a real range ("3-5 Yrs"); writing "3 Yrs" here
+        would read as an exact requirement the posting never made.
+        """
+        years_min = enrichment.get("experience_years_min")
+        if years_min is None:
+            return None
+        return f"{years_min}+ Yrs"
 
     def _location(self, hit: dict) -> Location:
         """

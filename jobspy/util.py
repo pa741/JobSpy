@@ -364,4 +364,9 @@ desired_order = [
     "work_from_home_type",
     # freehire-specific fields
     "source_board",
+    "summary",
+    "freshness_class",
+    "posting_age_days",
+    "repost_count",
+    "fake_freshness",
 ]

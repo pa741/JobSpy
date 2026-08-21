@@ -210,6 +210,11 @@ to choose the level yourself.
 Coverage is IT/tech roles only, so it complements the general-purpose boards rather than
 replacing one.
 
+It also carries signals no scraped board offers: `freshness_class`, `posting_age_days`,
+`repost_count` and `fake_freshness` say how much of a posting's own freshness claim to
+believe. A scraped board tells you what a listing says about itself; these say whether the
+role has been recycled or the date refreshed. All four are populated on every posting.
+
 
 
 ## Notes
@@ -291,7 +296,15 @@ Indeed specific
 └── company_logo
 
 freehire specific
-└── source_board        (which of freehire's crawled boards the posting came from)
+├── source_board        (which of freehire's crawled boards the posting came from)
+├── summary             (1-2 sentence synopsis)
+├── freshness_class     (fresh | stale | likely-evergreen)
+├── posting_age_days
+├── repost_count        (times this role has been reposted)
+└── fake_freshness      (stated posting date looks refreshed rather than real)
+
+freehire also fills job_level, experience_range and company_num_employees,
+which are not freehire-only concepts and so reuse the existing columns.
 
 Naukri specific
 ├── skills

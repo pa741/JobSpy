@@ -287,6 +287,16 @@ class JobPost(BaseModel):
     # says which of its 227 crawled boards the posting actually came from
     # ("greenhouse" vs "whatjobs-uk"), i.e. first-party ATS or re-aggregated.
     source_board: str | None = None
+    # A 1-2 sentence synopsis freehire generates; the only synthesized field it
+    # publishes, and much cheaper to read than the full description.
+    summary: str | None = None
+    # Whether the posting looks like a real, current opening. No scraped board
+    # offers this: a board shows you what a posting claims, these say how much
+    # of it to believe.
+    freshness_class: str | None = None  # fresh | stale | likely-evergreen
+    posting_age_days: int | None = None
+    repost_count: int | None = None  # times this role has been reposted
+    fake_freshness: bool | None = None  # stated date looks refreshed, not real
 
 class JobResponse(BaseModel):
     jobs: list[JobPost] = []

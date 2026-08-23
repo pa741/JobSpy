@@ -282,6 +282,22 @@ class JobPost(BaseModel):
     vacancy_count: int | None = None  #from vacancy
     work_from_home_type: str | None = None  #from clusters.wfhType (e.g., "Hybrid", "Remote")
 
+    # The numbers behind experience_range. That column is a display string ("3+ Yrs")
+    # because Naukri publishes one, so a consumer wanting to filter or aggregate on
+    # years has to parse it back out. These carry the values the source actually had.
+    experience_years_min: int | None = None
+    experience_years_max: int | None = None
+
+    # Indeed publishes a curated attribute list per posting - benefits, shift, schedule,
+    # education - and only the job type was ever read out of it. The rest is a labelled
+    # taxonomy the employer chose from, which is better evidence than the same facts
+    # recovered from prose.
+    attributes: list[str] | None = None
+
+    # When the posting first appeared on Indeed, as opposed to date_posted, which the
+    # board refreshes. A gap between the two is a repost.
+    date_on_indeed: str | None = None
+
     # freehire specific
     # freehire is an aggregator: `site` says freehire for every row, while this
     # says which of its 227 crawled boards the posting actually came from

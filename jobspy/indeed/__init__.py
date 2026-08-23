@@ -207,8 +207,22 @@ class Indeed(Scraper):
             description = markdown_converter(description)
 
         job_type = get_job_type(job["attributes"])
+        # The same list get_job_type reads, kept whole rather than reduced to one field
+        # and discarded. Labels are what a human sees on the posting.
+        attributes = [
+            attribute["label"]
+            for attribute in job.get("attributes") or []
+            if attribute.get("label")
+        ]
         timestamp_seconds = job["datePublished"] / 1000
         date_posted = datetime.fromtimestamp(timestamp_seconds).strftime("%Y-%m-%d")
+        # datePublished is refreshed when a posting is bumped; dateOnIndeed is not. The
+        # difference is the only repost signal Indeed gives.
+        date_on_indeed = (
+            datetime.fromtimestamp(job["dateOnIndeed"] / 1000).strftime("%Y-%m-%d")
+            if job.get("dateOnIndeed")
+            else None
+        )
         employer = job["employer"].get("dossier") if job["employer"] else None
         employer_details = employer.get("employerDetails", {}) if employer else {}
         rel_url = job["employer"]["relativeCompanyPageUrl"] if job["employer"] else None
@@ -227,8 +241,13 @@ class Indeed(Scraper):
                 country=job.get("location", {}).get("countryCode"),
             ),
             job_type=job_type,
+            attributes=attributes or None,
             compensation=get_compensation(job["compensation"]),
             date_posted=date_posted,
+            date_on_indeed=date_on_indeed,
+            # Indeed aggregates from other boards and names the origin. freehire fills the
+            # same column, so "which ATS is this really from" is answerable across both.
+            source_board=(job.get("source") or {}).get("name"),
             job_url=job_url,
             job_url_direct=(
                 job["recruit"].get("viewJobUrl") if job.get("recruit") else None

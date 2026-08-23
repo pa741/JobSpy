@@ -340,12 +340,19 @@ class FreeHire(Scraper):
             # None, not False, when freehire could not resolve the work mode -
             # "not stated" is not the same as "not remote".
             is_remote=work_mode == "remote" if work_mode else None,
+            # is_remote is a boolean and freehire knows three answers, so hybrid and
+            # onsite both collapse into False above and become indistinguishable. The
+            # raw value goes into the column Naukri already uses for exactly this, so
+            # the distinction survives without inventing a freehire-only field.
+            work_from_home_type=work_mode.lower() if work_mode else None,
             company_url=f"{site_url}/companies/{company_slug}" if company_slug else None,
             skills=hit.get("skills"),
             # These three are not freehire-only concepts, so they go in the
             # columns the other boards already use rather than in new ones.
             job_level=enrichment.get("seniority"),
             experience_range=self._experience_range(enrichment),
+            experience_years_min=enrichment.get("experience_years_min"),
+            experience_years_max=enrichment.get("experience_years_max"),
             # freehire's company_size really is an employee band ("51-200",
             # "1000+"), the same shape Indeed puts here - not a size adjective.
             company_num_employees=enrichment.get("company_size"),

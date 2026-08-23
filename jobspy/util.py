@@ -208,6 +208,23 @@ def remove_attributes(tag):
     return tag
 
 
+# Currency markers this parser recognises, mapped to the ISO code it reports.
+#
+# The symbol has to lead the figure. Anchoring on the number instead matches every
+# "5 years", "24 hours" and "2026" in a description and then has to reject them, which
+# is the same work done less reliably.
+CURRENCY_BY_MARKER = {
+    "$": "USD",
+    "£": "GBP",
+    "€": "EUR",
+    "USD": "USD",
+    "GBP": "GBP",
+    "EUR": "EUR",
+}
+
+_CURRENCY_MARKER = r"[$£€]|\b(?:USD|GBP|EUR)\b"
+
+
 def extract_salary(
     salary_str,
     lower_limit=1000,
@@ -218,13 +235,26 @@ def extract_salary(
 ):
     """
     Extracts salary information from a string and returns the salary interval, min and max salary values, and currency.
+
+    The currency is read from the text rather than assumed. This function used to hardcode
+    "$" in its pattern and return "USD" unconditionally, which meant it found nothing at all
+    outside the US - and it was only ever called for US postings, so nobody noticed. Both
+    halves of that are fixed: the pattern accepts £ and € as well, and the caller no longer
+    gates on the country.
+
     (TODO: Needs test cases as the regex is complicated and may not cover all edge cases)
     """
     if not salary_str:
         return None, None, None, None
 
     annual_max_salary = None
-    min_max_pattern = r"\$(\d+(?:,\d+)?(?:\.\d+)?)([kK]?)\s*[-—–]\s*(?:\$)?(\d+(?:,\d+)?(?:\.\d+)?)([kK]?)"
+    min_max_pattern = (
+        r"(?P<cur>" + _CURRENCY_MARKER + r")\s*"
+        r"(\d+(?:,\d+)?(?:\.\d+)?)([kK]?)"
+        r"\s*[-—–]\s*"
+        r"(?:(?:" + _CURRENCY_MARKER + r")\s*)?"
+        r"(\d+(?:,\d+)?(?:\.\d+)?)([kK]?)"
+    )
 
     def to_int(s):
         return int(float(s.replace(",", "")))
@@ -238,10 +268,16 @@ def extract_salary(
     match = re.search(min_max_pattern, salary_str)
 
     if match:
-        min_salary = to_int(match.group(1))
-        max_salary = to_int(match.group(3))
+        currency = CURRENCY_BY_MARKER.get(match.group("cur").strip().upper()) or CURRENCY_BY_MARKER.get(
+            match.group("cur").strip()
+        )
+        if not currency:
+            return None, None, None, None
+
+        min_salary = to_int(match.group(2))
+        max_salary = to_int(match.group(4))
         # Handle 'k' suffix for min and max salaries independently
-        if "k" in match.group(2).lower() or "k" in match.group(4).lower():
+        if "k" in match.group(3).lower() or "k" in match.group(5).lower():
             min_salary *= 1000
             max_salary *= 1000
 
@@ -272,9 +308,9 @@ def extract_salary(
             and annual_min_salary < annual_max_salary
         ):
             if enforce_annual_salary:
-                return interval, annual_min_salary, annual_max_salary, "USD"
+                return interval, annual_min_salary, annual_max_salary, currency
             else:
-                return interval, min_salary, max_salary, "USD"
+                return interval, min_salary, max_salary, currency
     return None, None, None, None
 
 
@@ -369,11 +405,16 @@ desired_order = [
     # naukri-specific fields
     "skills",
     "experience_range",
+    "experience_years_min",
+    "experience_years_max",
     "company_rating",
     "company_reviews_count",
     "vacancy_count",
     "work_from_home_type",
-    # freehire-specific fields
+    # indeed-specific fields
+    "attributes",
+    "date_on_indeed",
+    # shared with freehire: the board a posting was aggregated from
     "source_board",
     "summary",
     "freshness_class",

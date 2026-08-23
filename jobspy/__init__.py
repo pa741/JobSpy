@@ -196,17 +196,21 @@ def scrape_jobs(
                 ):
                     convert_to_annual(job_data)
             else:
-                if country_enum == Country.USA:
-                    (
-                        job_data["interval"],
-                        job_data["min_amount"],
-                        job_data["max_amount"],
-                        job_data["currency"],
-                    ) = extract_salary(
-                        job_data["description"],
-                        enforce_annual_salary=enforce_annual_salary,
-                    )
-                    job_data["salary_source"] = SalarySource.DESCRIPTION.value
+                # No country gate. This was `if country_enum == Country.USA`, which meant a
+                # UK or EU scrape never once attempted to read a salary out of a description
+                # - and since the boards themselves rarely fill the salary columns outside
+                # the US, that produced runs with 0% salary coverage and no indication why.
+                # extract_salary reads the currency from the text, so it is safe anywhere.
+                (
+                    job_data["interval"],
+                    job_data["min_amount"],
+                    job_data["max_amount"],
+                    job_data["currency"],
+                ) = extract_salary(
+                    job_data["description"],
+                    enforce_annual_salary=enforce_annual_salary,
+                )
+                job_data["salary_source"] = SalarySource.DESCRIPTION.value
 
             job_data["salary_source"] = (
                 job_data["salary_source"]
@@ -219,6 +223,12 @@ def scrape_jobs(
                 ", ".join(job_data["skills"]) if job_data["skills"] else None
             )
             job_data["experience_range"] = job_data.get("experience_range")
+            job_data["experience_years_min"] = job_data.get("experience_years_min")
+            job_data["experience_years_max"] = job_data.get("experience_years_max")
+            job_data["attributes"] = (
+                ", ".join(job_data["attributes"]) if job_data.get("attributes") else None
+            )
+            job_data["date_on_indeed"] = job_data.get("date_on_indeed")
             job_data["company_rating"] = job_data.get("company_rating")
             job_data["company_reviews_count"] = job_data.get("company_reviews_count")
             job_data["vacancy_count"] = job_data.get("vacancy_count")

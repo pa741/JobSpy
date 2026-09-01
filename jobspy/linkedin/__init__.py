@@ -251,6 +251,7 @@ class LinkedIn(Scraper):
             company_industry=job_details.get("company_industry"),
             description=job_details.get("description"),
             job_url_direct=job_details.get("job_url_direct"),
+            offsite_apply=job_details.get("offsite_apply"),
             emails=extract_emails_from_text(description),
             company_logo=job_details.get("company_logo"),
             job_function=job_details.get("job_function"),
@@ -306,7 +307,8 @@ class LinkedIn(Scraper):
             "job_level": parse_job_level(soup),
             "company_industry": parse_company_industry(soup),
             "job_type": parse_job_type(soup),
-            "job_url_direct": self._parse_job_url_direct(soup),
+            "job_url_direct": (job_url_direct := self._parse_job_url_direct(soup)),
+            "offsite_apply": self._parse_offsite_apply(soup, job_url_direct),
             "company_logo": company_logo,
             "job_function": job_function,
             "applicants": self._parse_applicants(soup),
@@ -371,9 +373,74 @@ class LinkedIn(Scraper):
                 location = Location(city=city, state=state, country=country)
         return location
 
+    def _parse_offsite_apply(
+        self, soup: BeautifulSoup, job_url_direct: str | None
+    ) -> bool | None:
+        """
+        Whether the application is completed on the employer's own system.
+
+        This exists because LinkedIn stopped publishing the apply URL to signed-out
+        clients. Measured 2026-09-01: across a live corpus of 4,470 LinkedIn postings
+        _parse_job_url_direct returned None for every single one, while the job detail
+        page had been fetched for 98.4% of them - so the scraper looked, and the URL was
+        simply no longer there. The guest page now carries no non-LinkedIn URL at all.
+
+        What it does still carry is whether the job is offsite, in two independent
+        places, and that is the fact worth keeping: somebody told an application happens
+        on the employer's own system can go to the posting and find it. Somebody shown
+        only a missing URL cannot tell that from Easy Apply.
+
+        Three lookups, narrowest first, following _parse_applicants above and for the
+        same reason - these class names churn, and a rename would otherwise turn every
+        job into "not offsite" with nothing saying so.
+
+        Returns None rather than False when nothing is recognisable. A page that failed
+        to render its apply affordance establishes nothing, and reporting that as "the
+        board hosts it" is the exact mistake this method was written to undo.
+        """
+        # A URL, where one is still published, settles it outright.
+        if job_url_direct:
+            return True
+
+        # The apply button's own icon. Present only on offsite postings.
+        if soup.find(
+            attrs={"data-svg-class-name": lambda v: v and "offsite-apply" in v}
+        ):
+            return True
+
+        # The sign-in modal LinkedIn wraps an offsite apply in, which names the route it
+        # is standing in front of.
+        if soup.find(
+            attrs={"data-impression-id": lambda v: v and "apply-link-offsite" in v}
+        ) or soup.find(
+            attrs={
+                "data-tracking-control-name": lambda v: v
+                and "apply-link-offsite" in v
+            }
+        ):
+            return True
+
+        # Nothing said offsite. That only means Easy Apply if there was an apply
+        # affordance to read in the first place - otherwise the page told us nothing.
+        has_apply_affordance = bool(
+            soup.find(attrs={"data-modal": lambda v: v and "apply-modal" in v})
+            or soup.find(
+                attrs={"data-impression-id": lambda v: v and "apply-link" in v}
+            )
+            or soup.find("button", class_=lambda x: x and "top-card-layout__cta" in x)
+        )
+
+        return False if has_apply_affordance else None
+
     def _parse_job_url_direct(self, soup: BeautifulSoup) -> str | None:
         """
         Gets the job url direct from job page
+
+        Kept although LinkedIn no longer publishes this to signed-out clients: it costs
+        one lookup, other locales and any future restoration flow straight back through
+        it, and a URL is strictly better than the flag beside it. See
+        _parse_offsite_apply for what is used when this returns None.
+
         :param soup:
         :return: str
         """

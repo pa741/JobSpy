@@ -31,3 +31,5 @@ regex = "^2024.4.28"
 jupyter = "^1.0.0"
 black = "*"
 pre-commit = "*"
+# The parser tests under tests/ run on synthetic markup and hit no network.
+pytest = "*"

@@ -242,6 +242,21 @@ class JobPost(BaseModel):
     company_name: str | None
     job_url: str
     job_url_direct: str | None = None
+
+    # Whether the application is completed away from the board, on the employer's own
+    # system, rather than on the board itself.
+    #
+    # Three-state deliberately. None means nobody established it - the detail page was
+    # not fetched, or the board does not say - and that is a different fact from False,
+    # which means the board hosts the application. Collapsing the two is what made
+    # job_url_direct unreadable when LinkedIn stopped publishing apply URLs: a missing
+    # value looked identical to "this is Easy Apply".
+    #
+    # True does not imply job_url_direct is set. LinkedIn now says whether a job is
+    # offsite without saying where to, so the flag and the URL are separate facts and
+    # the flag survives when the URL does not.
+    offsite_apply: bool | None = None
+
     location: Optional[Location]
 
     description: str | None = None

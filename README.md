@@ -1,7 +1,8 @@
 <img src="https://github.com/cullenwatson/JobSpy/assets/78247585/ae185b7e-e444-4712-8bb9-fa97f53e896b" width="400">
 
 > **This is a fork.** Upstream [speedyapply/JobSpy](https://github.com/speedyapply/JobSpy)
-> has not merged since 2026-02-18. This fork adds LinkedIn applicant counts and a
+> has not merged since 2026-02-18. This fork adds LinkedIn applicant counts, whether a
+> LinkedIn application is completed offsite, and a
 > [freehire.me](https://freehire.me) source, and is consumed by
 > [pa741/job-scrapper](https://github.com/pa741/job-scrapper) pinned to a tag. Work lands on
 > the `patches` branch; `main` tracks upstream so `patches` stays rebaseable.
@@ -217,6 +218,37 @@ role has been recycled or the date refreshed. All four are populated on every po
 
 
 
+## The apply URL, and why `offsite_apply` exists
+
+LinkedIn used to publish the employer's own apply URL on the signed-out job page, inside
+`<code id="applyUrl">`, and `_parse_job_url_direct` read it into `job_url_direct`. **It stopped,
+and the failure was silent** - the selector simply matched nothing and every posting came back
+with no direct link, which is indistinguishable from Easy Apply.
+
+Measured on 2026-09-01 against a live corpus of 4,470 LinkedIn postings: **every one** had no
+direct link, while the detail page had been fetched for 98.4% of them - so the scraper looked and
+there was nothing to find. Checked against the live pages directly: `<code id="applyUrl">` is
+gone, `/job-apply/{id}` and every other apply-redirect endpoint answers 404, there is no JSON-LD,
+and a guest job page now contains **no non-LinkedIn URL anywhere on it**. The URL is not
+obtainable without authenticating.
+
+What LinkedIn does still publish is whether the application is offsite, in two independent
+places: the apply button's `apply-button__offsite-apply-icon-svg` icon, and the sign-in modal's
+`public_jobs_apply-link-offsite_*` impression id. `_parse_offsite_apply` reads both, plus the
+tracking-control name, plus `job_url_direct` where it is still available.
+
+**It returns `None`, not `False`, when nothing is recognisable.** A page that did not render its
+apply affordance - a signup wall, a truncated response, the next redesign - establishes nothing,
+and reporting that as "LinkedIn hosts this application" is the fault this replaced. Verified
+against live LinkedIn: 6/6 unfiltered postings return `True`, and 6/6 under LinkedIn's own
+`f_AL=true` Easy Apply filter return `False`.
+
+`job_url_direct` is unchanged and still read first - a URL is strictly better than a flag, other
+locales may still serve it, and a restoration would flow straight back through it.
+
+Run the tests with `pytest tests/`. The fixtures are synthetic markup reduced to the attributes
+the parser reads; no scraped job content is committed.
+
 ## Notes
 * Indeed is the best scraper currently with no rate limiting.  
 * All the job board endpoints are capped at around 1000 jobs on a given search.  
@@ -282,7 +314,9 @@ JobPost
 Linkedin specific
 ├── job_level
 ├── applicants          (verbatim caption, e.g. "Over 200 applicants")
-└── applicant_count     (the figure parsed out of it, e.g. 200)
+├── applicant_count     (the figure parsed out of it, e.g. 200)
+└── offsite_apply       (True = applies on the employer's own system, False = Easy Apply,
+                         None = not established. See "The apply URL" below.)
 
 Linkedin & Indeed specific
 └── company_industry
